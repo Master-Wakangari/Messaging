@@ -16,18 +16,3 @@ document.getElementById("message").textContent = message;
 </script>
 </body>
 </html>
-const express = require("express");
-const app = express();
-app.get("/", (req, res) => {
-const message = req.query.text || "No message received";
-res.send(`
-<div style="
-word-wrap: break-word;
-font-size: 16px;
-padding: 10px;
-font-family: Arial;
-">${message}</div>
-`);
-});
-app.listen(3000, () => console.log("Server running"));
-<div style="word-wrap:break-word; font-size:16px;">YourMessageHere</div>
