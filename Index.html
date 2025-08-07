@@ -8,11 +8,11 @@ body { margin: 0; padding: 10px; font-family: Arial; }
 </style>
 </head>
 <body>
-<div id="message"></div>
+<div id="message">No message received</div>
 <script>
 const urlParams = new URLSearchParams(window.location.search);
-const message = urlParams.get('text') || "No message received";
-document.getElementById("message").textContent = message;
+document.getElementById("message").textContent =
+urlParams.get('text') || "No message received";
 </script>
 </body>
 </html>
