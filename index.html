@@ -2,76 +2,295 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Chat</title>
 <style>
 body {
-  font-family: Arial, sans-serif;
-  margin: 20px;
-  background-color: #f4f7fb;
-}
-.chat-container {
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f0f2f5;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
+
+.chat-container {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .message-bubble {
   display: inline-block;
-  padding: 10px 15px;
-  border-radius: 15px;
-  max-width: 70%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  max-width: 75%;
   word-wrap: break-word;
   white-space: pre-wrap;
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.4;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  position: relative;
 }
+
 .user-message {
-  background-color: #d1e7ff;
+  background-color: #0084ff;
+  color: white;
   align-self: flex-end;
+  border-bottom-right-radius: 4px;
 }
+
 .other-message {
   background-color: #e4e6eb;
+  color: #050505;
   align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+.timestamp {
+  font-size: 11px;
+  color: #65676b;
+  margin-top: 4px;
+  text-align: right;
+}
+
+.loading {
+  text-align: center;
+  padding: 10px;
+  color: #65676b;
+}
+
+.error-message {
+  color: #ff4d4f;
+  text-align: center;
+  padding: 15px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.message-bubble {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.refresh-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #0084ff;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.refresh-button:hover {
+  background: #0073e6;
 }
 </style>
 </head>
 <body>
 
-<div class="chat-container" id="chat"></div>
+<div class="chat-container" id="chat">
+  <div class="loading" id="loading">Loading messages...</div>
+</div>
+
+<button class="refresh-button" id="refreshButton" title="Refresh messages">↻</button>
 
 <script>
-const token = "patkXjCfAFHBuvUYA.177becaf0c74a235b2649fc4699cb57d0667a31b482e304f463428662a67fb9a";
-const baseId = "appe1rfvfff2aF0pv";
-const tableName = "Messaging Memory";
+// Configuration
+const config = {
+  token: "patkXjCfAFHBuvUYA.177becaf0c74a235b2649fc4699cb57d0667a31b482e304f463428662a67fb9a",
+  baseId: "appe1rfvfff2aF0pv",
+  tableName: "Messaging Memory",
+  refreshInterval: 5000, // 5 seconds
+  maxRetries: 3,
+  retryDelay: 2000
+};
 
-fetch(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}?sort[0][field]=Created&sort[0][direction]=asc`, {
-  headers: { Authorization: `Bearer ${token}` }
-})
-.then(response => response.json())
-.then(data => {
-  const chatContainer = document.getElementById("chat");
-  if (data.records.length > 0) {
-    data.records.forEach(record => {
-      const messageText = record.fields["Message Content"] || "(No text)";
-      const sender = record.fields["Sender"] || "Other"; // Optional: if you have a sender field
+// State management
+let lastFetchTime = 0;
+let retryCount = 0;
+let refreshIntervalId = null;
 
-      const messageDiv = document.createElement("div");
-      messageDiv.classList.add("message-bubble");
-      messageDiv.textContent = messageText;
+// DOM elements
+const chatContainer = document.getElementById("chat");
+const loadingIndicator = document.getElementById("loading");
+const refreshButton = document.getElementById("refreshButton");
 
-      // Decide which side bubble goes on
-      if (sender.toLowerCase() === "me") {
-        messageDiv.classList.add("user-message");
-      } else {
-        messageDiv.classList.add("other-message");
+// Format timestamp
+function formatTimestamp(timestamp) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Fetch messages from Airtable
+async function fetchMessages() {
+  try {
+    loadingIndicator.style.display = 'block';
+    
+    const response = await fetch(
+      `https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(config.tableName)}?sort[0][field]=Created&sort[0][direction]=asc`, 
+      {
+        headers: { Authorization: `Bearer ${config.token}` },
+        cache: 'no-store'
       }
-
-      chatContainer.appendChild(messageDiv);
-    });
-  } else {
-    chatContainer.textContent = "No messages found.";
+    );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    lastFetchTime = Date.now();
+    retryCount = 0;
+    return data.records;
+    
+  } catch (error) {
+    console.error('Fetch error:', error);
+    retryCount++;
+    
+    if (retryCount <= config.maxRetries) {
+      console.log(`Retrying in ${config.retryDelay/1000} seconds... (${retryCount}/${config.maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, config.retryDelay));
+      return fetchMessages();
+    } else {
+      throw error;
+    }
+  } finally {
+    loadingIndicator.style.display = 'none';
   }
-})
-.catch(error => {
-  console.error(error);
-  document.getElementById("chat").textContent = "Error loading messages.";
+}
+
+// Render messages to the chat container
+function renderMessages(messages) {
+  if (!messages || messages.length === 0) {
+    chatContainer.innerHTML = '<div class="error-message">No messages found.</div>';
+    return;
+  }
+
+  // Create a document fragment for efficient DOM updates
+  const fragment = document.createDocumentFragment();
+  
+  messages.forEach(record => {
+    const messageText = record.fields["Message Content"] || "(No text)";
+    const sender = record.fields["Sender"] || "Other";
+    const timestamp = record.fields["Created"] || record.createdTime;
+    
+    const messageDiv = document.createElement("div");
+    messageDiv.classList.add("message-bubble");
+    
+    // Decide which side bubble goes on
+    if (sender.toLowerCase() === "me") {
+      messageDiv.classList.add("user-message");
+    } else {
+      messageDiv.classList.add("other-message");
+    }
+    
+    messageDiv.textContent = messageText;
+    
+    // Add timestamp if available
+    if (timestamp) {
+      const timeElement = document.createElement("div");
+      timeElement.classList.add("timestamp");
+      timeElement.textContent = formatTimestamp(timestamp);
+      messageDiv.appendChild(timeElement);
+    }
+    
+    fragment.appendChild(messageDiv);
+  });
+  
+  // Efficiently update the DOM
+  chatContainer.innerHTML = '';
+  chatContainer.appendChild(fragment);
+  
+  // Scroll to bottom
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+// Handle errors
+function handleError(error) {
+  console.error('Error:', error);
+  chatContainer.innerHTML = `
+    <div class="error-message">
+      Error loading messages. 
+      <br>
+      ${error.message || 'Please try again later.'}
+    </div>
+  `;
+}
+
+// Initialize and load messages
+async function loadMessages() {
+  try {
+    const messages = await fetchMessages();
+    renderMessages(messages);
+  } catch (error) {
+    handleError(error);
+  }
+}
+
+// Setup auto-refresh
+function setupAutoRefresh() {
+  // Clear any existing interval
+  if (refreshIntervalId) {
+    clearInterval(refreshIntervalId);
+  }
+  
+  // Set up new interval
+  refreshIntervalId = setInterval(async () => {
+    try {
+      const messages = await fetchMessages();
+      renderMessages(messages);
+    } catch (error) {
+      console.error('Auto-refresh error:', error);
+      // Don't show error to user for auto-refresh failures
+    }
+  }, config.refreshInterval);
+}
+
+// Manual refresh handler
+refreshButton.addEventListener('click', async () => {
+  refreshButton.disabled = true;
+  refreshButton.textContent = '...';
+  
+  try {
+    await loadMessages();
+  } finally {
+    refreshButton.disabled = false;
+    refreshButton.textContent = '↻';
+  }
+});
+
+// Initial load
+document.addEventListener('DOMContentLoaded', () => {
+  loadMessages();
+  setupAutoRefresh();
+});
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  if (refreshIntervalId) {
+    clearInterval(refreshIntervalId);
+  }
 });
 </script>
 
