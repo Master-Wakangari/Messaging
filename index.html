@@ -3,28 +3,77 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body { margin: 0; padding: 10px; font-family: Arial; }
-#message {
-word-wrap: break-word;
-white-space: pre-wrap;
-font-size: 16px;
-color: black; /* Ensures text is visible */
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+  background-color: #f4f7fb;
+}
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.message-bubble {
+  display: inline-block;
+  padding: 10px 15px;
+  border-radius: 15px;
+  max-width: 70%;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  font-size: 16px;
+}
+.user-message {
+  background-color: #d1e7ff;
+  align-self: flex-end;
+}
+.other-message {
+  background-color: #e4e6eb;
+  align-self: flex-start;
 }
 </style>
 </head>
 <body>
-<div id="message">Loading...</div>
-<script>
-// Force-check for URL parameter
-const url = new URL(window.location.href);
-const message = url.searchParams.get('text') || "No message received";
-document.getElementById("message").textContent = message;
 
-// Debugging: Alert if no parameter found (remove later)
-if(!url.searchParams.has('text')) {
-alert("URL is missing ?text= parameter. Example:\n\n" +
-"https://Master-Wakangari.github.io/message-viewer/?text=Hello");
-}
+<div class="chat-container" id="chat"></div>
+
+<script>
+const token = "patkXjCfAFHBuvUYA.177becaf0c74a235b2649fc4699cb57d0667a31b482e304f463428662a67fb9a";
+const baseId = "appe1rfvfff2aF0pv";
+const tableName = "Messaging Memory";
+
+fetch(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}?sort[0][field]=Created&sort[0][direction]=asc`, {
+  headers: { Authorization: `Bearer ${token}` }
+})
+.then(response => response.json())
+.then(data => {
+  const chatContainer = document.getElementById("chat");
+  if (data.records.length > 0) {
+    data.records.forEach(record => {
+      const messageText = record.fields["Message Content"] || "(No text)";
+      const sender = record.fields["Sender"] || "Other"; // Optional: if you have a sender field
+
+      const messageDiv = document.createElement("div");
+      messageDiv.classList.add("message-bubble");
+      messageDiv.textContent = messageText;
+
+      // Decide which side bubble goes on
+      if (sender.toLowerCase() === "me") {
+        messageDiv.classList.add("user-message");
+      } else {
+        messageDiv.classList.add("other-message");
+      }
+
+      chatContainer.appendChild(messageDiv);
+    });
+  } else {
+    chatContainer.textContent = "No messages found.";
+  }
+})
+.catch(error => {
+  console.error(error);
+  document.getElementById("chat").textContent = "Error loading messages.";
+});
 </script>
+
 </body>
 </html>
