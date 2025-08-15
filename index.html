@@ -131,12 +131,12 @@ body {
 <button class="refresh-button" id="refreshButton" title="Refresh messages">↻</button>
 
 <script>
-// Configuration - REPLACE THESE WITH YOUR ACTUAL VALUES
+// Configuration - MUST REPLACE THESE WITH YOUR ACTUAL VALUES
 const config = {
-  token: "patkXjCfAFHBuvUYA.177becaf0c74a235b2649fc4699cb57d0667a31b482e304f463428662a67fb9a",
-  baseId: "appe1rfvfff2aF0pv",
-  tableName: "Messaging Memory",
-  refreshInterval: 5000, // 5 seconds
+  token: "patYOUR_PERSONAL_ACCESS_TOKEN",  // Starts with "pat..." - get from Airtable account
+  baseId: "appYOUR_BASE_ID",               // Find in Airtable URL after /app/
+  tableName: "Messaging Memory",           // Case-sensitive table name
+  refreshInterval: 5000,                   // 5 seconds
   maxRetries: 3,
   retryDelay: 2000
 };
@@ -158,7 +158,7 @@ function formatTimestamp(timestamp) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-// Fetch messages from Airtable
+// Enhanced fetch with better error handling
 async function fetchMessages() {
   try {
     loadingIndicator.style.display = 'block';
@@ -175,20 +175,19 @@ async function fetchMessages() {
     );
     
     if (!response.ok) {
-      // More detailed error information
-      let errorDetails = '';
+      let errorDetails = await response.text();
       try {
-        const errorData = await response.json();
+        const errorData = JSON.parse(errorDetails);
         errorDetails = errorData.error?.message || JSON.stringify(errorData);
       } catch (e) {
-        errorDetails = 'Could not parse error response';
+        // If not JSON, keep the raw response text
       }
       
       throw new Error(`HTTP ${response.status}: ${response.statusText}\nDetails: ${errorDetails}`);
     }
     
     const data = await response.json();
-    console.log("API Response:", data); // Debug log
+    console.log("API Response:", data);
     lastFetchTime = Date.now();
     retryCount = 0;
     return data.records;
@@ -216,7 +215,6 @@ function renderMessages(messages) {
     return;
   }
 
-  // Create a document fragment for efficient DOM updates
   const fragment = document.createDocumentFragment();
   
   messages.forEach(record => {
@@ -227,7 +225,6 @@ function renderMessages(messages) {
     const messageDiv = document.createElement("div");
     messageDiv.classList.add("message-bubble");
     
-    // Decide which side bubble goes on
     if (sender.toLowerCase() === "me") {
       messageDiv.classList.add("user-message");
     } else {
@@ -236,7 +233,6 @@ function renderMessages(messages) {
     
     messageDiv.textContent = messageText;
     
-    // Add timestamp if available
     if (timestamp) {
       const timeElement = document.createElement("div");
       timeElement.classList.add("timestamp");
@@ -247,15 +243,12 @@ function renderMessages(messages) {
     fragment.appendChild(messageDiv);
   });
   
-  // Efficiently update the DOM
   chatContainer.innerHTML = '';
   chatContainer.appendChild(fragment);
-  
-  // Scroll to bottom
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// Handle errors with more detailed information
+// Enhanced error handling
 function handleError(error) {
   console.error('Error:', error);
   
@@ -268,16 +261,31 @@ function handleError(error) {
       <div class="debug-info">
         <strong>Possible causes:</strong>
         <ul>
-          <li>Invalid API key</li>
+          <li>Invalid Personal Access Token</li>
+          <li>Token missing required scopes (data.records:read)</li>
           <li>Incorrect base ID or table name</li>
-          <li>Missing permissions</li>
         </ul>
         <strong>How to fix:</strong>
         <ol>
-          <li>Verify your API key in Airtable account settings</li>
-          <li>Check the base ID and table name</li>
-          <li>Ensure your API key has read permissions</li>
+          <li>Verify your token at <a href="https://airtable.com/create/tokens" target="_blank">Airtable Tokens</a></li>
+          <li>Ensure token has <code>data.records:read</code> scope</li>
+          <li>Check base ID matches your Airtable URL</li>
         </ol>
+        <strong>Current configuration:</strong><br>
+        Base ID: ${config.baseId}<br>
+        Table: ${config.tableName}
+      </div>
+    `;
+  } else if (error.message.includes('404')) {
+    errorMessage = 'Resource Not Found (404)';
+    debugInfo = `
+      <div class="debug-info">
+        The table or base could not be found. Verify:
+        <ul>
+          <li>Base ID is correct</li>
+          <li>Table name is exactly as shown in Airtable</li>
+          <li>Your token has access to this base</li>
+        </ul>
       </div>
     `;
   }
@@ -305,19 +313,16 @@ async function loadMessages() {
 
 // Setup auto-refresh
 function setupAutoRefresh() {
-  // Clear any existing interval
   if (refreshIntervalId) {
     clearInterval(refreshIntervalId);
   }
   
-  // Set up new interval
   refreshIntervalId = setInterval(async () => {
     try {
       const messages = await fetchMessages();
       renderMessages(messages);
     } catch (error) {
       console.error('Auto-refresh error:', error);
-      // Don't show error to user for auto-refresh failures
     }
   }, config.refreshInterval);
 }
@@ -341,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupAutoRefresh();
 });
 
-// Clean up on page unload
+// Clean up
 window.addEventListener('beforeunload', () => {
   if (refreshIntervalId) {
     clearInterval(refreshIntervalId);
