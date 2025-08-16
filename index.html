@@ -141,12 +141,12 @@ const config = {
   // Your exact table name
   tableName: "Messages",
   
-  // Field mappings based on your screenshot
+  // Updated field mappings based on your screenshots
   fieldMappings: {
-    content: "Message Length",        // Your message content field
-    senderPair: "Sender Recipient Pair", // Your sender/recipient field
-    date: "Sent Date",               // Your timestamp field
-    recipientId: "Recipient ID"      // Additional identifier
+    content: "Message",               // Changed to show actual message content
+    senderPair: "Sender-Recipient Pair", // Updated to match your exact field name
+    date: "Sent Date",
+    recipientId: "Recipient ID"
   },
   
   // Your user ID from the sender pair
@@ -182,16 +182,14 @@ async function fetchMessages() {
     const url = new URL(`https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(config.tableName)}`);
     url.searchParams.append('sort[0][field]', config.fieldMappings.date);
     url.searchParams.append('sort[0][direction]', 'asc');
-    url.searchParams.append('filterByFormula', `NOT({${config.fieldMappings.content}}='')`);
     
     const response = await fetch(url, {
       headers: { 
         Authorization: `Bearer ${config.token}`,
         'Content-Type': 'application/json'
-      },
-      cache: 'no-store'
+      }
     });
-    
+
     if (!response.ok) {
       let errorDetails = await response.text();
       try {
@@ -235,16 +233,16 @@ function renderMessages(messages) {
     const messageDiv = document.createElement("div");
     messageDiv.classList.add("message-bubble");
     
-    // Get message content
+    // Get message content from the correct field
     const messageText = record.fields[config.fieldMappings.content] || "(No content)";
     messageDiv.textContent = messageText;
     
     // Determine sender
     const senderPair = record.fields[config.fieldMappings.senderPair] || "";
-    const isYou = senderPair.startsWith(config.yourUserId);
+    const isYou = senderPair.includes(config.yourUserId);
     messageDiv.classList.add(isYou ? "user-message" : "other-message");
     
-    // Add timestamp
+    // Add timestamp if available
     const timestamp = record.fields[config.fieldMappings.date] || record.createdTime;
     if (timestamp) {
       const timeElement = document.createElement("div");
