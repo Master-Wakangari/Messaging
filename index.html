@@ -117,6 +117,22 @@ body {
   background: #cccccc;
   cursor: not-allowed;
 }
+
+.date-divider {
+  text-align: center;
+  margin: 15px 0;
+  color: #65676b;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.date-divider::before,
+.date-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #e4e6eb;
+  margin: 0 10px;
+}
 </style>
 </head>
 <body>
@@ -146,7 +162,7 @@ const config = {
     content: "Message Content",          // Shows message text
     senderId: "Sender ID",               // Phone number of sender
     recipientId: "Recipient ID",         // Phone number of recipient  
-    timestamp: "Time",                   // CHANGED: Your actual timestamp field "Time"
+    timestamp: "Time",                   // Your actual timestamp field "Time"
     senderPair: "Sender-Recipient pair"  // The pair field
   },
   
@@ -173,20 +189,84 @@ const refreshButton = document.getElementById("refreshButton");
 function formatTimestamp(timestamp) {
   if (!timestamp) return '';
   
-  // Handle different timestamp formats from Airtable
-  const date = new Date(timestamp);
+  const messageDate = new Date(timestamp);
+  const now = new Date();
   
   // Check if date is valid
-  if (isNaN(date.getTime())) {
+  if (isNaN(messageDate.getTime())) {
     console.warn('Invalid timestamp:', timestamp);
     return '';
   }
   
-  return date.toLocaleTimeString([], { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    hour12: true 
-  });
+  // Calculate difference in days
+  const diffTime = Math.abs(now - messageDate);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  
+  if (diffDays === 1) {
+    // Today: Show time only
+    return messageDate.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  } else if (diffDays === 2) {
+    // Yesterday: Show "Yesterday" + time
+    return 'Yesterday ' + messageDate.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  } else if (diffDays <= 7) {
+    // Within a week: Show day name + time
+    return messageDate.toLocaleDateString([], { 
+      weekday: 'short' 
+    }) + ' ' + messageDate.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  } else {
+    // Older than a week: Show date + time
+    return messageDate.toLocaleDateString([], { 
+      month: 'numeric', 
+      day: 'numeric' 
+    }) + ' ' + messageDate.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  }
+}
+
+function formatDateDivider(timestamp) {
+  if (!timestamp) return '';
+  
+  const messageDate = new Date(timestamp);
+  const now = new Date();
+  
+  if (isNaN(messageDate.getTime())) return '';
+  
+  // Calculate difference in days
+  const diffTime = Math.abs(now - messageDate);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  
+  if (diffDays === 1) {
+    return 'Today';
+  } else if (diffDays === 2) {
+    return 'Yesterday';
+  } else if (diffDays <= 7) {
+    return messageDate.toLocaleDateString([], { 
+      weekday: 'long',
+      month: 'long', 
+      day: 'numeric' 
+    });
+  } else {
+    return messageDate.toLocaleDateString([], { 
+      month: 'long', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+  }
 }
 
 async function fetchMessages() {
@@ -195,7 +275,7 @@ async function fetchMessages() {
     
     const url = new URL(`https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(config.tableName)}`);
     url.searchParams.append('sort[0][field]', config.fieldMappings.timestamp);
-    url.searchParams.append('sort[0][direction]', 'desc'); // Changed to desc for newest first
+    url.searchParams.append('sort[0][direction]', 'desc'); // Newest first
     
     const response = await fetch(url, {
       headers: { 
@@ -242,6 +322,7 @@ function renderMessages(messages) {
   }
 
   const fragment = document.createDocumentFragment();
+  let lastDate = '';
   
   messages.forEach(record => {
     const messageDiv = document.createElement("div");
@@ -258,9 +339,18 @@ function renderMessages(messages) {
     
     // Get the ACTUAL timestamp from "Time" field
     const timestamp = record.fields[config.fieldMappings.timestamp];
-    console.log('Raw timestamp:', timestamp, 'Formatted:', formatTimestamp(timestamp));
     
     if (timestamp) {
+      // Add date divider if date changed
+      const currentDate = formatDateDivider(timestamp);
+      if (currentDate && currentDate !== lastDate) {
+        const dateDivider = document.createElement("div");
+        dateDivider.classList.add("date-divider");
+        dateDivider.textContent = currentDate;
+        fragment.appendChild(dateDivider);
+        lastDate = currentDate;
+      }
+      
       const timeElement = document.createElement("div");
       timeElement.classList.add("timestamp");
       timeElement.textContent = formatTimestamp(timestamp);
