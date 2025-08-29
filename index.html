@@ -275,7 +275,7 @@ async function fetchMessages() {
     
     const url = new URL(`https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(config.tableName)}`);
     url.searchParams.append('sort[0][field]', config.fieldMappings.timestamp);
-    url.searchParams.append('sort[0][direction]', 'desc'); // Newest first
+    url.searchParams.append('sort[0][direction]', 'asc'); // CHANGED TO 'asc' FOR OLDEST FIRST
     
     const response = await fetch(url, {
       headers: { 
@@ -324,7 +324,9 @@ function renderMessages(messages) {
   const fragment = document.createDocumentFragment();
   let lastDate = '';
   
-  messages.forEach(record => {
+  // CHANGED: Process messages in reverse order (oldest to newest)
+  for (let i = 0; i < messages.length; i++) {
+    const record = messages[i];
     const messageDiv = document.createElement("div");
     messageDiv.classList.add("message-bubble");
     
@@ -358,10 +360,11 @@ function renderMessages(messages) {
     }
     
     fragment.appendChild(messageDiv);
-  });
+  }
   
   chatContainer.innerHTML = '';
   chatContainer.appendChild(fragment);
+  // CHANGED: Scroll to bottom to see newest messages
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
