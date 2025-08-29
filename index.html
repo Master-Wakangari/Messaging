@@ -129,27 +129,28 @@ body {
 
 <script>
 // =============================================
-// CONFIGURATION - MATCHES YOUR EXACT AIRTABLE
+// CONFIGURATION - UPDATED WITH YOUR EXACT FIELD NAMES
 // =============================================
 const config = {
-  // Your Personal Access Token (regenerate after testing!)
+  // Your Personal Access Token
   token: "patkXjCfAFHBuvUYA.d98b37c26061359b8c8cc6a8f96e5a829e46c72d929a465ffaae3b0a38317c1e",
   
-  // From your Airtable URL (appXXXXXXXXXXXXXX)
+  // From your Airtable URL
   baseId: "appe1rfvfff2aF0pv",
   
   // Your exact table name
   tableName: "Messages",
   
-  // Updated field mappings based on your screenshots
+  // UPDATED FIELD MAPPINGS BASED ON YOUR SCREENSHOT
   fieldMappings: {
-    content: "Message Content",               // Changed to show actual message content
-    senderPair: "Sender-Recipient Pair", // Updated to match your exact field name
-    date: "Sent Date",
-    recipientId: "Recipient ID"
+    content: "Message Content",          // Shows message text
+    senderId: "Sender ID",               // Phone number of sender
+    recipientId: "Recipient ID",         // Phone number of recipient  
+    timestamp: "Time",                   // CHANGED: Your actual timestamp field "Time"
+    senderPair: "Sender-Recipient pair"  // The pair field
   },
   
-  // Your user ID from the sender pair
+  // Your user ID (phone number)
   yourUserId: "6512199514",
   
   // Refresh settings
@@ -159,7 +160,7 @@ const config = {
 };
 
 // =============================================
-// APPLICATION CODE - NO CHANGES NEEDED BELOW
+// APPLICATION CODE
 // =============================================
 let lastFetchTime = 0;
 let retryCount = 0;
@@ -171,8 +172,21 @@ const refreshButton = document.getElementById("refreshButton");
 
 function formatTimestamp(timestamp) {
   if (!timestamp) return '';
+  
+  // Handle different timestamp formats from Airtable
   const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid timestamp:', timestamp);
+    return '';
+  }
+  
+  return date.toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: true 
+  });
 }
 
 async function fetchMessages() {
@@ -180,8 +194,8 @@ async function fetchMessages() {
     loadingIndicator.style.display = 'block';
     
     const url = new URL(`https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(config.tableName)}`);
-    url.searchParams.append('sort[0][field]', config.fieldMappings.date);
-    url.searchParams.append('sort[0][direction]', 'asc');
+    url.searchParams.append('sort[0][field]', config.fieldMappings.timestamp);
+    url.searchParams.append('sort[0][direction]', 'desc'); // Changed to desc for newest first
     
     const response = await fetch(url, {
       headers: { 
@@ -233,17 +247,19 @@ function renderMessages(messages) {
     const messageDiv = document.createElement("div");
     messageDiv.classList.add("message-bubble");
     
-    // Get message content from the correct field
+    // Get message content
     const messageText = record.fields[config.fieldMappings.content] || "(No content)";
     messageDiv.textContent = messageText;
     
-    // Determine sender
-    const senderPair = record.fields[config.fieldMappings.senderPair] || "";
-    const isYou = senderPair.includes(config.yourUserId);
+    // Determine sender using Sender ID field (phone number)
+    const senderId = record.fields[config.fieldMappings.senderId] || "";
+    const isYou = senderId.includes(config.yourUserId);
     messageDiv.classList.add(isYou ? "user-message" : "other-message");
     
-    // Add timestamp if available
-    const timestamp = record.fields[config.fieldMappings.date] || record.createdTime;
+    // Get the ACTUAL timestamp from "Time" field
+    const timestamp = record.fields[config.fieldMappings.timestamp];
+    console.log('Raw timestamp:', timestamp, 'Formatted:', formatTimestamp(timestamp));
+    
     if (timestamp) {
       const timeElement = document.createElement("div");
       timeElement.classList.add("timestamp");
@@ -277,7 +293,8 @@ function handleError(error) {
         </ul>
         <strong>Current config:</strong><br>
         Base: ${config.baseId}<br>
-        Table: ${config.tableName}
+        Table: ${config.tableName}<br>
+        Timestamp Field: ${config.fieldMappings.timestamp}
       </div>
     `;
   } else if (error.message.includes('422')) {
@@ -285,9 +302,10 @@ function handleError(error) {
     debugInfo = `
       <div class="debug-info">
         <strong>Field Mappings:</strong><br>
-        Content: ${config.fieldMappings.content}<br>
-        Sender: ${config.fieldMappings.senderPair}<br>
-        Date: ${config.fieldMappings.date}<br>
+        Content: "${config.fieldMappings.content}"<br>
+        Sender ID: "${config.fieldMappings.senderId}"<br>
+        Timestamp: "${config.fieldMappings.timestamp}"<br>
+        Recipient ID: "${config.fieldMappings.recipientId}"<br>
         <strong>Verify these match your Airtable fields exactly</strong>
       </div>
     `;
