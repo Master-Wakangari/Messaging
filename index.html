@@ -14,6 +14,15 @@ body {
   flex-direction: column;
 }
 
+.header {
+  background-color: #0084ff;
+  color: white;
+  padding: 15px;
+  text-align: center;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
 .chat-container {
   flex: 1;
   padding: 15px;
@@ -124,6 +133,8 @@ body {
   color: #65676b;
   font-size: 12px;
   font-weight: 500;
+  display: flex;
+  align-items: center;
 }
 
 .date-divider::before,
@@ -133,9 +144,41 @@ body {
   border-bottom: 1px solid #e4e6eb;
   margin: 0 10px;
 }
+
+.conversation-selector {
+  padding: 10px 15px;
+  background: white;
+  border-bottom: 1px solid #e4e6eb;
+  display: flex;
+  justify-content: center;
+}
+
+.conversation-selector select {
+  padding: 8px 12px;
+  border-radius: 18px;
+  border: 1px solid #ddd;
+  background: white;
+  font-size: 14px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.sender-name {
+  font-weight: bold;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
 </style>
 </head>
 <body>
+
+<div class="header">Live Chat</div>
+
+<div class="conversation-selector">
+  <select id="conversationSelector">
+    <option value="">Loading conversations...</option>
+  </select>
+</div>
 
 <div class="chat-container" id="chat">
   <div class="loading" id="loading">Loading messages...</div>
@@ -159,11 +202,16 @@ const config = {
   
   // UPDATED FIELD MAPPINGS BASED ON YOUR SCREENSHOT
   fieldMappings: {
-    content: "Message Content",          // Shows message text
-    senderId: "Sender ID",               // Phone number of sender
-    recipientId: "Recipient ID",         // Phone number of recipient  
-    timestamp: "Time",                   // Your actual timestamp field "Time"
-    senderPair: "Sender-Recipient pair"  // The pair field
+    content: "Message Content",          // Long text field containing the actual message
+    senderId: "Sender ID",               // Phone number field (primary field)
+    recipientId: "Recipient ID",         // Phone number field
+    timestamp: "Time",                   // Timestamp field
+    senderPair: "Sender-Recipient Pair", // Shows sender -- recipient relationship
+    messageLength: "Message Length",     // Number showing character count
+    linkedSender: "Linked Sender",       // Links to User UID table showing sender name
+    linkedRecipient: "Linked Recipient", // Links to User UID table showing recipient name(s)
+    attachments: "Attachments",          // Attachment field
+    sentDate: "Sent Date"                // When the message was created
   },
   
   // Your user ID (phone number)
@@ -181,10 +229,13 @@ const config = {
 let lastFetchTime = 0;
 let retryCount = 0;
 let refreshIntervalId = null;
+let allMessages = [];
+let currentConversationPair = '';
 
 const chatContainer = document.getElementById("chat");
 const loadingIndicator = document.getElementById("loading");
 const refreshButton = document.getElementById("refreshButton");
+const conversationSelector = document.getElementById("conversationSelector");
 
 function formatTimestamp(timestamp) {
   if (!timestamp) return '';
@@ -275,7 +326,7 @@ async function fetchMessages() {
     
     const url = new URL(`https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(config.tableName)}`);
     url.searchParams.append('sort[0][field]', config.fieldMappings.timestamp);
-    url.searchParams.append('sort[0][direction]', 'asc'); // CHANGED TO 'asc' FOR OLDEST FIRST
+    url.searchParams.append('sort[0][direction]', 'asc'); // OLDEST FIRST
     
     const response = await fetch(url, {
       headers: { 
@@ -315,29 +366,88 @@ async function fetchMessages() {
   }
 }
 
+function populateConversationSelector(messages) {
+  // Extract unique conversation pairs
+  const pairs = new Set();
+  
+  messages.forEach(record => {
+    const pair = record.fields[config.fieldMappings.senderPair];
+    if (pair) pairs.add(pair);
+  });
+  
+  // Clear existing options
+  conversationSelector.innerHTML = '';
+  
+  // Add default option
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = 'Select a conversation...';
+  conversationSelector.appendChild(defaultOption);
+  
+  // Add conversation options
+  pairs.forEach(pair => {
+    const option = document.createElement('option');
+    option.value = pair;
+    option.textContent = pair;
+    conversationSelector.appendChild(option);
+  });
+  
+  // Auto-select if only one conversation
+  if (pairs.size === 1) {
+    currentConversationPair = Array.from(pairs)[0];
+    conversationSelector.value = currentConversationPair;
+  }
+}
+
 function renderMessages(messages) {
   if (!messages || messages.length === 0) {
     chatContainer.innerHTML = '<div class="error-message">No messages found.</div>';
     return;
   }
 
+  // Filter messages by selected conversation if applicable
+  const filteredMessages = currentConversationPair 
+    ? messages.filter(record => record.fields[config.fieldMappings.senderPair] === currentConversationPair)
+    : messages;
+
+  if (filteredMessages.length === 0) {
+    chatContainer.innerHTML = '<div class="error-message">No messages in this conversation.</div>';
+    return;
+  }
+
   const fragment = document.createDocumentFragment();
   let lastDate = '';
   
-  // CHANGED: Process messages in reverse order (oldest to newest)
-  for (let i = 0; i < messages.length; i++) {
-    const record = messages[i];
+  // Process messages in chronological order
+  for (let i = 0; i < filteredMessages.length; i++) {
+    const record = filteredMessages[i];
     const messageDiv = document.createElement("div");
-    messageDiv.classList.add("message-bubble");
     
     // Get message content
     const messageText = record.fields[config.fieldMappings.content] || "(No content)";
-    messageDiv.textContent = messageText;
     
     // Determine sender using Sender ID field (phone number)
     const senderId = record.fields[config.fieldMappings.senderId] || "";
     const isYou = senderId.includes(config.yourUserId);
-    messageDiv.classList.add(isYou ? "user-message" : "other-message");
+    
+    // Create message bubble
+    const bubble = document.createElement("div");
+    bubble.classList.add("message-bubble");
+    bubble.classList.add(isYou ? "user-message" : "other-message");
+    bubble.textContent = messageText;
+    
+    // Add sender name for others' messages
+    if (!isYou && record.fields[config.fieldMappings.linkedSender]) {
+      const senderName = document.createElement("div");
+      senderName.classList.add("sender-name");
+      
+      // Extract name from linked record if available
+      const linkedSender = record.fields[config.fieldMappings.linkedSender];
+      const senderNameText = Array.isArray(linkedSender) ? linkedSender[0] : "Unknown";
+      senderName.textContent = senderNameText;
+      
+      messageDiv.appendChild(senderName);
+    }
     
     // Get the ACTUAL timestamp from "Time" field
     const timestamp = record.fields[config.fieldMappings.timestamp];
@@ -356,15 +466,16 @@ function renderMessages(messages) {
       const timeElement = document.createElement("div");
       timeElement.classList.add("timestamp");
       timeElement.textContent = formatTimestamp(timestamp);
-      messageDiv.appendChild(timeElement);
+      bubble.appendChild(timeElement);
     }
     
+    messageDiv.appendChild(bubble);
     fragment.appendChild(messageDiv);
   }
   
   chatContainer.innerHTML = '';
   chatContainer.appendChild(fragment);
-  // CHANGED: Scroll to bottom to see newest messages
+  // Scroll to bottom to see newest messages
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
@@ -418,6 +529,8 @@ function handleError(error) {
 async function loadMessages() {
   try {
     const messages = await fetchMessages();
+    allMessages = messages;
+    populateConversationSelector(messages);
     renderMessages(messages);
   } catch (error) {
     handleError(error);
@@ -438,6 +551,11 @@ refreshButton.addEventListener('click', async () => {
     refreshButton.disabled = false;
     refreshButton.textContent = '↻';
   }
+});
+
+conversationSelector.addEventListener('change', () => {
+  currentConversationPair = conversationSelector.value;
+  renderMessages(allMessages);
 });
 
 // Initialize
