@@ -1,675 +1,849 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Chat</title>
-<style>
-/* Your existing CSS remains the same */
-body {
-  font-family: 'Segoe UI', Roboto, sans-serif;
-  margin: 0;
-  padding: 0;
-  background-color: #f0f2f5;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Chat with Send</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            height: 85vh;
+        }
+        
+        .header {
+            background: #0084ff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .header i {
+            font-size: 1.8rem;
+        }
+        
+        .conversation-selector {
+            padding: 15px;
+            background: #f5f7fa;
+            border-bottom: 1px solid #e4e6eb;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .conversation-selector select {
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+            background: white;
+            font-size: 1rem;
+            width: 100%;
+            max-width: 400px;
+            outline: none;
+            cursor: pointer;
+        }
+        
+        .chat-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="rgba(240,242,245,0.5)"/><path d="M0 50 L100 50 M50 0 L50 100" stroke="rgba(200,200,200,0.2)" stroke-width="1"/></svg>');
+        }
+        
+        .message-bubble {
+            display: inline-block;
+            padding: 12px 18px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            font-size: 1rem;
+            line-height: 1.4;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .user-message {
+            background-color: #0084ff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .other-message {
+            background-color: #e4e6eb;
+            color: #050505;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+        
+        .timestamp {
+            font-size: 0.75rem;
+            color: #65676b;
+            margin-top: 5px;
+            text-align: right;
+        }
+        
+        .sender-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #2d88ff;
+        }
+        
+        .message-input {
+            padding: 20px;
+            background: #f5f7fa;
+            border-top: 1px solid #e4e6eb;
+            display: flex;
+            gap: 12px;
+        }
+        
+        .message-input input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .message-input input:focus {
+            border-color: #0084ff;
+        }
+        
+        .send-button {
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+        
+        .send-button:hover {
+            background: #0073e6;
+        }
+        
+        .send-button:active {
+            transform: scale(0.95);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #65676b;
+            font-size: 1.1rem;
+        }
+        
+        .date-divider {
+            text-align: center;
+            margin: 20px 0;
+            color: #65676b;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+        
+        .date-divider::before,
+        .date-divider::after {
+            content: "";
+            flex: 1;
+            border-bottom: 1px solid #e4e6eb;
+            margin: 0 15px;
+        }
+        
+        .refresh-button {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .refresh-button:hover {
+            transform: rotate(30deg);
+        }
+        
+        .error-message {
+            color: #ff4d4f;
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
 
-.header {
-  background-color: #0084ff;
-  color: white;
-  padding: 15px;
-  text-align: center;
-  font-weight: bold;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.chat-container {
-  flex: 1;
-  padding: 15px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 800px;
-  margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.message-bubble {
-  display: inline-block;
-  padding: 12px 16px;
-  border-radius: 18px;
-  max-width: 75%;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  font-size: 15px;
-  line-height: 1.4;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-  position: relative;
-  animation: fadeIn 0.3s ease-out;
-}
-
-.user-message {
-  background-color: #0084ff;
-  color: white;
-  align-self: flex-end;
-  border-bottom-right-radius: 4px;
-}
-
-.other-message {
-  background-color: #e4e6eb;
-  color: #050505;
-  align-self: flex-start;
-  border-bottom-left-radius: 4px;
-}
-
-.timestamp {
-  font-size: 11px;
-  color: #65676b;
-  margin-top: 4px;
-  text-align: right;
-}
-
-.loading {
-  text-align: center;
-  padding: 10px;
-  color: #65676b;
-}
-
-.error-message {
-  color: #ff4d4f;
-  text-align: center;
-  padding: 15px;
-  background: white;
-  border-radius: 8px;
-  margin: 10px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.debug-info {
-  font-size: 12px;
-  color: #666;
-  margin-top: 10px;
-  word-break: break-all;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.refresh-button {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #0084ff;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  font-size: 20px;
-  cursor: pointer;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.refresh-button:hover {
-  background: #0073e6;
-}
-
-.refresh-button:disabled {
-  background: #cccccc;
-  cursor: not-allowed;
-}
-
-.date-divider {
-  text-align: center;
-  margin: 15px 0;
-  color: #65676b;
-  font-size: 12px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-}
-
-.date-divider::before,
-.date-divider::after {
-  content: "";
-  flex: 1;
-  border-bottom: 1px solid #e4e6eb;
-  margin: 0 10px;
-}
-
-.conversation-selector {
-  padding: 10px 15px;
-  background: white;
-  border-bottom: 1px solid #e4e6eb;
-  display: flex;
-  justify-content: center;
-}
-
-.conversation-selector select {
-  padding: 8px 12px;
-  border-radius: 18px;
-  border: 1px solid #ddd;
-  background: white;
-  font-size: 14px;
-  width: 100%;
-  max-width: 300px;
-}
-
-.sender-name {
-  font-weight: bold;
-  margin-bottom: 4px;
-  font-size: 13px;
-}
-</style>
+        .debug-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+            word-break: break-all;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                height: 92vh;
+                border-radius: 8px;
+            }
+            
+            .header {
+                padding: 15px;
+                font-size: 1.2rem;
+            }
+            
+            .message-bubble {
+                max-width: 85%;
+            }
+            
+            .refresh-button {
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+        }
+    </style>
 </head>
 <body>
-
-<div class="header">Live Chat</div>
-
-<div class="conversation-selector">
-  <select id="conversationSelector">
-    <option value="">Loading conversations...</option>
-  </select>
-</div>
-
-<div class="chat-container" id="chat">
-  <div class="loading" id="loading">Loading messages...</div>
-</div>
-
-<button class="refresh-button" id="refreshButton" title="Refresh messages">↻</button>
-
-<script>
-// =============================================
-// CONFIGURATION - UPDATED WITH YOUR EXACT FIELD NAMES
-// =============================================
-const config = {
-  // Your Personal Access Token
-  token: "patkXjCfAFHBuvUYA.d98b37c26061359b8c8cc6a8f96e5a829e46c72d929a465ffaae3b0a38317c1e",
-  
-  // From your Airtable URL
-  baseId: "appe1rfvfff2aF0pv",
-  
-  // Your exact table name
-  tableName: "Messages",
-  
-  // UPDATED FIELD MAPPINGS BASED ON YOUR SCREENSHOT
-  fieldMappings: {
-    content: "Message Content",          // Long text field containing the actual message
-    senderId: "Sender ID",               // Phone number field (primary field)
-    recipientId: "Recipient ID",         // Phone number field
-    timestamp: "Time",                   // Timestamp field
-    senderPair: "Sender-Recipient Pair", // Shows sender -- recipient relationship
-    messageLength: "Message Length",     // Number showing character count
-    linkedSender: "Linked Sender",       // Links to User UID table showing sender name
-    linkedRecipient: "Linked Recipient", // Links to User UID table showing recipient name(s)
-    attachments: "Attachments",          // Attachment field
-    sentDate: "Sent Date"                // When the message was created
-  },
-  
-  // Your user ID (phone number)
-  yourUserId: "6512199514",
-  
-  // Refresh settings
-  refreshInterval: 10000, // 10 seconds (slower to avoid rate limits)
-  maxRetries: 3,
-  retryDelay: 2000
-};
-
-// =============================================
-// APPLICATION CODE
-// =============================================
-let lastFetchTime = 0;
-let retryCount = 0;
-let refreshIntervalId = null;
-let allMessages = [];
-let currentConversationPair = '';
-let userNamesCache = new Map(); // Cache for user names
-
-const chatContainer = document.getElementById("chat");
-const loadingIndicator = document.getElementById("loading");
-const refreshButton = document.getElementById("refreshButton");
-const conversationSelector = document.getElementById("conversationSelector");
-
-function formatTimestamp(timestamp) {
-  if (!timestamp) return '';
-  
-  const messageDate = new Date(timestamp);
-  const now = new Date();
-  
-  // Check if date is valid
-  if (isNaN(messageDate.getTime())) {
-    console.warn('Invalid timestamp:', timestamp);
-    return '';
-  }
-  
-  // Calculate difference in days
-  const diffTime = Math.abs(now - messageDate);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-  
-  if (diffDays === 1) {
-    // Today: Show time only
-    return messageDate.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  } else if (diffDays === 2) {
-    // Yesterday: Show "Yesterday" + time
-    return 'Yesterday ' + messageDate.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  } else if (diffDays <= 7) {
-    // Within a week: Show day name + time
-    return messageDate.toLocaleDateString([], { 
-      weekday: 'short' 
-    }) + ' ' + messageDate.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  } else {
-    // Older than a week: Show date + time
-    return messageDate.toLocaleDateString([], { 
-      month: 'numeric', 
-      day: 'numeric' 
-    }) + ' ' + messageDate.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  }
-}
-
-function formatDateDivider(timestamp) {
-  if (!timestamp) return '';
-  
-  const messageDate = new Date(timestamp);
-  const now = new Date();
-  
-  if (isNaN(messageDate.getTime())) return '';
-  
-  // Calculate difference in days
-  const diffTime = Math.abs(now - messageDate);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-  
-  if (diffDays === 1) {
-    return 'Today';
-  } else if (diffDays === 2) {
-    return 'Yesterday';
-  } else if (diffDays <= 7) {
-    return messageDate.toLocaleDateString([], { 
-      weekday: 'long',
-      month: 'long', 
-      day: 'numeric' 
-    });
-  } else {
-    return messageDate.toLocaleDateString([], { 
-      month: 'long', 
-      day: 'numeric',
-      year: 'numeric'
-    });
-  }
-}
-
-async function fetchUserNames(recordIds) {
-  if (!recordIds || recordIds.length === 0) return new Map();
-  
-  const uniqueIds = [...new Set(recordIds)];
-  const cachedResults = new Map();
-  const idsToFetch = [];
-  
-  // Check cache first
-  uniqueIds.forEach(id => {
-    if (userNamesCache.has(id)) {
-      cachedResults.set(id, userNamesCache.get(id));
-    } else {
-      idsToFetch.push(id);
-    }
-  });
-  
-  if (idsToFetch.length === 0) return cachedResults;
-  
-  try {
-    // Fetch user names from the User UID table
-    const formula = `OR(${idsToFetch.map(id => `RECORD_ID() = '${id}'`).join(', ')})`;
-    const url = new URL(`https://api.airtable.com/v0/${config.baseId}/User UID`);
-    url.searchParams.append('filterByFormula', formula);
-    
-    const response = await fetch(url, {
-      headers: { 
-        Authorization: `Bearer ${config.token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch user data: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    const userMap = new Map();
-    
-    // Extract user names (assuming the primary field contains the name)
-    data.records.forEach(record => {
-      const userName = record.fields.Name || Object.values(record.fields)[0] || 'Unknown User';
-      userMap.set(record.id, userName);
-      userNamesCache.set(record.id, userName); // Cache for future use
-    });
-    
-    // Combine cached and new results
-    return new Map([...cachedResults, ...userMap]);
-    
-  } catch (error) {
-    console.error('Error fetching user names:', error);
-    // Return cached results only if we can't fetch new ones
-    return cachedResults;
-  }
-}
-
-async function fetchMessages() {
-  try {
-    loadingIndicator.style.display = 'block';
-    
-    const url = new URL(`https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(config.tableName)}`);
-    url.searchParams.append('sort[0][field]', config.fieldMappings.timestamp);
-    url.searchParams.append('sort[0][direction]', 'asc');
-    
-    const response = await fetch(url, {
-      headers: { 
-        Authorization: `Bearer ${config.token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      let errorDetails = await response.text();
-      try {
-        errorDetails = JSON.parse(errorDetails).error?.message || errorDetails;
-      } catch (e) {
-        console.warn("Couldn't parse error response");
-      }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}\nDetails: ${errorDetails}`);
-    }
-    
-    const data = await response.json();
-    console.log("API Success:", data.records?.length, "messages loaded");
-    lastFetchTime = Date.now();
-    retryCount = 0;
-    return data.records;
-    
-  } catch (error) {
-    console.error('Fetch Error:', error);
-    retryCount++;
-    
-    if (retryCount <= config.maxRetries) {
-      console.log(`Retrying in ${config.retryDelay/1000} seconds... (${retryCount}/${config.maxRetries})`);
-      await new Promise(resolve => setTimeout(resolve, config.retryDelay));
-      return fetchMessages();
-    }
-    throw error;
-  } finally {
-    loadingIndicator.style.display = 'none';
-  }
-}
-
-async function populateConversationSelector(messages) {
-  // Collect all user record IDs from linked fields
-  const allUserRecordIds = [];
-  
-  messages.forEach(record => {
-    // Get sender record IDs
-    const senderRecords = record.fields[config.fieldMappings.linkedSender];
-    if (senderRecords && Array.isArray(senderRecords)) {
-      allUserRecordIds.push(...senderRecords);
-    }
-    
-    // Get recipient record IDs
-    const recipientRecords = record.fields[config.fieldMappings.linkedRecipient];
-    if (recipientRecords && Array.isArray(recipientRecords)) {
-      allUserRecordIds.push(...recipientRecords);
-    }
-  });
-  
-  // Fetch user names for all record IDs
-  const userNamesMap = await fetchUserNames(allUserRecordIds);
-  
-  // Create a map of conversation pairs to their participant names
-  const conversationMap = new Map();
-  
-  messages.forEach(record => {
-    const pair = record.fields[config.fieldMappings.senderPair];
-    if (!pair) return;
-    
-    // Extract sender and recipient names from the map
-    const senderRecords = record.fields[config.fieldMappings.linkedSender];
-    const recipientRecords = record.fields[config.fieldMappings.linkedRecipient];
-    
-    const senderName = senderRecords && senderRecords.length > 0 
-      ? userNamesMap.get(senderRecords[0]) || 'Unknown Sender' 
-      : 'Unknown Sender';
-    
-    const recipientName = recipientRecords && recipientRecords.length > 0 
-      ? userNamesMap.get(recipientRecords[0]) || 'Unknown Recipient' 
-      : 'Unknown Recipient';
-    
-    // Store the conversation with readable names
-    if (!conversationMap.has(pair)) {
-      conversationMap.set(pair, `${senderName} ↔ ${recipientName}`);
-    }
-  });
-  
-  // Clear existing options
-  conversationSelector.innerHTML = '';
-  
-  // Add default option
-  const defaultOption = document.createElement('option');
-  defaultOption.value = '';
-  defaultOption.textContent = 'Select a conversation...';
-  conversationSelector.appendChild(defaultOption);
-  
-  // Add conversation options with readable names
-  conversationMap.forEach((readableName, pairId) => {
-    const option = document.createElement('option');
-    option.value = pairId;
-    option.textContent = readableName;
-    conversationSelector.appendChild(option);
-  });
-  
-  // Store the mapping for later use
-  window.conversationMap = conversationMap;
-  window.userNamesMap = userNamesMap; // Store for message rendering
-  
-  // Auto-select if only one conversation
-  if (conversationMap.size === 1) {
-    const firstPair = Array.from(conversationMap.keys())[0];
-    currentConversationPair = firstPair;
-    conversationSelector.value = firstPair;
-  }
-}
-
-function renderMessages(messages) {
-  if (!messages || messages.length === 0) {
-    chatContainer.innerHTML = '<div class="error-message">No messages found.</div>';
-    return;
-  }
-
-  // Filter messages by selected conversation if applicable
-  const filteredMessages = currentConversationPair 
-    ? messages.filter(record => record.fields[config.fieldMappings.senderPair] === currentConversationPair)
-    : messages;
-
-  if (filteredMessages.length === 0) {
-    chatContainer.innerHTML = '<div class="error-message">No messages in this conversation.</div>';
-    return;
-  }
-
-  const fragment = document.createDocumentFragment();
-  let lastDate = '';
-  
-  // Process messages in chronological order
-  for (let i = 0; i < filteredMessages.length; i++) {
-    const record = filteredMessages[i];
-    const messageDiv = document.createElement("div");
-    
-    // Get message content
-    const messageText = record.fields[config.fieldMappings.content] || "(No content)";
-    
-    // Determine sender using Sender ID field (phone number)
-    const senderId = record.fields[config.fieldMappings.senderId] || "";
-    const isYou = senderId.includes(config.yourUserId);
-    
-    // Create message bubble
-    const bubble = document.createElement("div");
-    bubble.classList.add("message-bubble");
-    bubble.classList.add(isYou ? "user-message" : "other-message");
-    bubble.textContent = messageText;
-    
-    // Add sender name for others' messages
-    if (!isYou && record.fields[config.fieldMappings.linkedSender]) {
-      const senderRecords = record.fields[config.fieldMappings.linkedSender];
-      if (senderRecords && senderRecords.length > 0) {
-        const senderName = document.createElement("div");
-        senderName.classList.add("sender-name");
+    <div class="container">
+        <div class="header">
+            <i class="fas fa-comments"></i>
+            <span>Live Chat</span>
+        </div>
         
-        // Get name from our cached user names map
-        const senderNameText = window.userNamesMap 
-          ? window.userNamesMap.get(senderRecords[0]) || 'Unknown User' 
-          : 'Unknown User';
+        <div class="conversation-selector">
+            <select id="conversationSelector">
+                <option value="">Loading conversations...</option>
+            </select>
+        </div>
         
-        senderName.textContent = senderNameText;
-        messageDiv.appendChild(senderName);
-      }
-    }
-    
-    // Get the ACTUAL timestamp from "Time" field
-    const timestamp = record.fields[config.fieldMappings.timestamp];
-    
-    if (timestamp) {
-      // Add date divider if date changed
-      const currentDate = formatDateDivider(timestamp);
-      if (currentDate && currentDate !== lastDate) {
-        const dateDivider = document.createElement("div");
-        dateDivider.classList.add("date-divider");
-        dateDivider.textContent = currentDate;
-        fragment.appendChild(dateDivider);
-        lastDate = currentDate;
-      }
-      
-      const timeElement = document.createElement("div");
-      timeElement.classList.add("timestamp");
-      timeElement.textContent = formatTimestamp(timestamp);
-      bubble.appendChild(timeElement);
-    }
-    
-    messageDiv.appendChild(bubble);
-    fragment.appendChild(messageDiv);
-  }
-  
-  chatContainer.innerHTML = '';
-  chatContainer.appendChild(fragment);
-  // Scroll to bottom to see newest messages
-  chatContainer.scrollTop = chatContainer.scrollHeight;
-}
-
-function handleError(error) {
-  console.error('Error:', error);
-  
-  let errorMessage = 'Error loading messages. Please try again later.';
-  let debugInfo = '';
-  
-  if (error.message.includes('403')) {
-    errorMessage = 'Access Denied (403 Forbidden)';
-    debugInfo = `
-      <div class="debug-info">
-        <strong>Possible causes:</strong>
-        <ul>
-          <li>Invalid Personal Access Token</li>
-          <li>Token missing required scopes</li>
-          <li>Incorrect base ID or table name</li>
-        </ul>
-        <strong>Current config:</strong><br>
-        Base: ${config.baseId}<br>
-        Table: ${config.tableName}<br>
-        Timestamp Field: ${config.fieldMappings.timestamp}
-      </div>
-    `;
-  } else if (error.message.includes('422')) {
-    errorMessage = 'Data Validation Error (422)';
-    debugInfo = `
-      <div class="debug-info">
-        <strong>Field Mappings:</strong><br>
-        Content: "${config.fieldMappings.content}"<br>
-        Sender ID: "${config.fieldMappings.senderId}"<br>
-        Timestamp: "${config.fieldMappings.timestamp}"<br>
-        Recipient ID: "${config.fieldMappings.recipientId}"<br>
-        <strong>Verify these match your Airtable fields exactly</strong>
-      </div>
-    `;
-  }
-  
-  chatContainer.innerHTML = `
-    <div class="error-message">
-      ${errorMessage}
-      <br><br>
-      <strong>Details:</strong><br>
-      ${error.message.split('\n')[0]}
-      ${debugInfo}
+        <div class="chat-container" id="chat">
+            <div class="loading" id="loading">Loading messages...</div>
+        </div>
+        
+        <div class="message-input">
+            <input type="text" id="messageInput" placeholder="Type your message here...">
+            <button class="send-button" id="sendButton">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
     </div>
-  `;
-}
+    
+    <button class="refresh-button" id="refreshButton" title="Refresh messages">
+        <i class="fas fa-sync-alt"></i>
+    </button>
 
-async function loadMessages() {
-  try {
-    const messages = await fetchMessages();
-    allMessages = messages;
-    await populateConversationSelector(messages);
-    renderMessages(messages);
-  } catch (error) {
-    handleError(error);
-  }
-}
+    <script>
+        // =============================================
+        // CONFIGURATION - UPDATED WITH YOUR EXACT FIELD NAMES
+        // =============================================
+        const config = {
+            // Your Personal Access Token
+            token: "patkXjCfAFHBuvUYA.d98b37c26061359b8c8cc6a8f96e5a829e46c72d929a465ffaae3b0a38317c1e",
+            
+            // From your Airtable URL
+            baseId: "appe1rfvfff2aF0pv",
+            
+            // Your exact table name
+            tableName: "Messages",
+            
+            // UPDATED FIELD MAPPINGS BASED ON YOUR SCREENSHOT
+            fieldMappings: {
+                content: "Message Content",          // Long text field containing the actual message
+                senderId: "Sender ID",               // Phone number field (primary field)
+                recipientId: "Recipient ID",         // Phone number field
+                timestamp: "Time",                   // Timestamp field
+                senderPair: "Sender-Recipient Pair", // Shows sender -- recipient relationship
+                messageLength: "Message Length",     // Number showing character count
+                linkedSender: "Linked Sender",       // Links to User UID table showing sender name
+                linkedRecipient: "Linked Recipient", // Links to User UID table showing recipient name(s)
+                attachments: "Attachments",          // Attachment field
+                sentDate: "Sent Date"                // When the message was created
+            },
+            
+            // Your user ID (phone number)
+            yourUserId: "6512199514",
+            
+            // Refresh settings
+            refreshInterval: 10000, // 10 seconds (slower to avoid rate limits)
+            maxRetries: 3,
+            retryDelay: 2000
+        };
 
-function setupAutoRefresh() {
-  if (refreshIntervalId) clearInterval(refreshIntervalId);
-  refreshIntervalId = setInterval(loadMessages, config.refreshInterval);
-}
+        // =============================================
+        // APPLICATION CODE
+        // =============================================
+        let lastFetchTime = 0;
+        let retryCount = 0;
+        let refreshIntervalId = null;
+        let allMessages = [];
+        let currentConversationPair = '';
+        let userNamesCache = new Map(); // Cache for user names
 
-refreshButton.addEventListener('click', async () => {
-  refreshButton.disabled = true;
-  refreshButton.textContent = '...';
-  try {
-    await loadMessages();
-  } finally {
-    refreshButton.disabled = false;
-    refreshButton.textContent = '↻';
-  }
-});
+        const chatContainer = document.getElementById("chat");
+        const loadingIndicator = document.getElementById("loading");
+        const refreshButton = document.getElementById("refreshButton");
+        const conversationSelector = document.getElementById("conversationSelector");
+        const messageInput = document.getElementById("messageInput");
+        const sendButton = document.getElementById("sendButton");
+        
+        // Function to add a message to the chat
+        function addMessage(sender, message, time, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message-bubble');
+            messageDiv.classList.add(type === 'user' ? 'user-message' : 'other-message');
+            
+            if (type !== 'user') {
+                const senderName = document.createElement('div');
+                senderName.classList.add('sender-name');
+                senderName.textContent = sender;
+                messageDiv.appendChild(senderName);
+            }
+            
+            messageDiv.appendChild(document.createTextNode(message));
+            
+            const timestamp = document.createElement('div');
+            timestamp.classList.add('timestamp');
+            timestamp.textContent = time;
+            messageDiv.appendChild(timestamp);
+            
+            chatContainer.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
 
-conversationSelector.addEventListener('change', () => {
-  currentConversationPair = conversationSelector.value;
-  renderMessages(allMessages);
-});
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '';
+            
+            const messageDate = new Date(timestamp);
+            const now = new Date();
+            
+            // Check if date is valid
+            if (isNaN(messageDate.getTime())) {
+                console.warn('Invalid timestamp:', timestamp);
+                return '';
+            }
+            
+            // Calculate difference in days
+            const diffTime = Math.abs(now - messageDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            
+            if (diffDays === 1) {
+                // Today: Show time only
+                return messageDate.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                });
+            } else if (diffDays === 2) {
+                // Yesterday: Show "Yesterday" + time
+                return 'Yesterday ' + messageDate.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                });
+            } else if (diffDays <= 7) {
+                // Within a week: Show day name + time
+                return messageDate.toLocaleDateString([], { 
+                    weekday: 'short' 
+                }) + ' ' + messageDate.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                });
+            } else {
+                // Older than a week: Show date + time
+                return messageDate.toLocaleDateString([], { 
+                    month: 'numeric', 
+                    day: 'numeric' 
+                }) + ' ' + messageDate.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                });
+            }
+        }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-  loadMessages();
-  setupAutoRefresh();
-});
+        function formatDateDivider(timestamp) {
+            if (!timestamp) return '';
+            
+            const messageDate = new Date(timestamp);
+            const now = new Date();
+            
+            if (isNaN(messageDate.getTime())) return '';
+            
+            // Calculate difference in days
+            const diffTime = Math.abs(now - messageDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            
+            if (diffDays === 1) {
+                return 'Today';
+            } else if (diffDays === 2) {
+                return 'Yesterday';
+            } else if (diffDays <= 7) {
+                return messageDate.toLocaleDateString([], { 
+                    weekday: 'long',
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+            } else {
+                return messageDate.toLocaleDateString([], { 
+                    month: 'long', 
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+            }
+        }
 
-window.addEventListener('beforeunload', () => {
-  if (refreshIntervalId) clearInterval(refreshIntervalId);
-});
-</script>
+        async function fetchUserNames(recordIds) {
+            if (!recordIds || recordIds.length === 0) return new Map();
+            
+            const uniqueIds = [...new Set(recordIds)];
+            const cachedResults = new Map();
+            const idsToFetch = [];
+            
+            // Check cache first
+            uniqueIds.forEach(id => {
+                if (userNamesCache.has(id)) {
+                    cachedResults.set(id, userNamesCache.get(id));
+                } else {
+                    idsToFetch.push(id);
+                }
+            });
+            
+            if (idsToFetch.length === 0) return cachedResults;
+            
+            try {
+                // Fetch user names from the User UID table
+                const formula = `OR(${idsToFetch.map(id => `RECORD_ID() = '${id}'`).join(', ')})`;
+                const url = new URL(`https://api.airtable.com/v0/${config.baseId}/User UID`);
+                url.searchParams.append('filterByFormula', formula);
+                
+                const response = await fetch(url, {
+                    headers: { 
+                        Authorization: `Bearer ${config.token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch user data: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const userMap = new Map();
+                
+                // Extract user names (assuming the primary field contains the name)
+                data.records.forEach(record => {
+                    const userName = record.fields.Name || Object.values(record.fields)[0] || 'Unknown User';
+                    userMap.set(record.id, userName);
+                    userNamesCache.set(record.id, userName); // Cache for future use
+                });
+                
+                // Combine cached and new results
+                return new Map([...cachedResults, ...userMap]);
+                
+            } catch (error) {
+                console.error('Error fetching user names:', error);
+                // Return cached results only if we can't fetch new ones
+                return cachedResults;
+            }
+        }
+
+        async function fetchMessages() {
+            try {
+                loadingIndicator.style.display = 'block';
+                
+                const url = new URL(`https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(config.tableName)}`);
+                url.searchParams.append('sort[0][field]', config.fieldMappings.timestamp);
+                url.searchParams.append('sort[0][direction]', 'asc');
+                
+                const response = await fetch(url, {
+                    headers: { 
+                        Authorization: `Bearer ${config.token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    let errorDetails = await response.text();
+                    try {
+                        errorDetails = JSON.parse(errorDetails).error?.message || errorDetails;
+                    } catch (e) {
+                        console.warn("Couldn't parse error response");
+                    }
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}\nDetails: ${errorDetails}`);
+                }
+                
+                const data = await response.json();
+                console.log("API Success:", data.records?.length, "messages loaded");
+                lastFetchTime = Date.now();
+                retryCount = 0;
+                return data.records;
+                
+            } catch (error) {
+                console.error('Fetch Error:', error);
+                retryCount++;
+                
+                if (retryCount <= config.maxRetries) {
+                    console.log(`Retrying in ${config.retryDelay/1000} seconds... (${retryCount}/${config.maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, config.retryDelay));
+                    return fetchMessages();
+                }
+                throw error;
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        async function populateConversationSelector(messages) {
+            // Collect all user record IDs from linked fields
+            const allUserRecordIds = [];
+            
+            messages.forEach(record => {
+                // Get sender record IDs
+                const senderRecords = record.fields[config.fieldMappings.linkedSender];
+                if (senderRecords && Array.isArray(senderRecords)) {
+                    allUserRecordIds.push(...senderRecords);
+                }
+                
+                // Get recipient record IDs
+                const recipientRecords = record.fields[config.fieldMappings.linkedRecipient];
+                if (recipientRecords && Array.isArray(recipientRecords)) {
+                    allUserRecordIds.push(...recipientRecords);
+                }
+            });
+            
+            // Fetch user names for all record IDs
+            const userNamesMap = await fetchUserNames(allUserRecordIds);
+            
+            // Create a map of conversation pairs to their participant names
+            const conversationMap = new Map();
+            
+            messages.forEach(record => {
+                const pair = record.fields[config.fieldMappings.senderPair];
+                if (!pair) return;
+                
+                // Extract sender and recipient names from the map
+                const senderRecords = record.fields[config.fieldMappings.linkedSender];
+                const recipientRecords = record.fields[config.fieldMappings.linkedRecipient];
+                
+                const senderName = senderRecords && senderRecords.length > 0 
+                    ? userNamesMap.get(senderRecords[0]) || 'Unknown Sender' 
+                    : 'Unknown Sender';
+                
+                const recipientName = recipientRecords && recipientRecords.length > 0 
+                    ? userNamesMap.get(recipientRecords[0]) || 'Unknown Recipient' 
+                    : 'Unknown Recipient';
+                
+                // Store the conversation with readable names
+                if (!conversationMap.has(pair)) {
+                    conversationMap.set(pair, `${senderName} ↔ ${recipientName}`);
+                }
+            });
+            
+            // Clear existing options
+            conversationSelector.innerHTML = '';
+            
+            // Add default option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Select a conversation...';
+            conversationSelector.appendChild(defaultOption);
+            
+            // Add conversation options with readable names
+            conversationMap.forEach((readableName, pairId) => {
+                const option = document.createElement('option');
+                option.value = pairId;
+                option.textContent = readableName;
+                conversationSelector.appendChild(option);
+            });
+            
+            // Store the mapping for later use
+            window.conversationMap = conversationMap;
+            window.userNamesMap = userNamesMap; // Store for message rendering
+            
+            // Auto-select if only one conversation
+            if (conversationMap.size === 1) {
+                const firstPair = Array.from(conversationMap.keys())[0];
+                currentConversationPair = firstPair;
+                conversationSelector.value = firstPair;
+            }
+        }
+
+        function renderMessages(messages) {
+            if (!messages || messages.length === 0) {
+                chatContainer.innerHTML = '<div class="error-message">No messages found.</div>';
+                return;
+            }
+
+            // Filter messages by selected conversation if applicable
+            const filteredMessages = currentConversationPair 
+                ? messages.filter(record => record.fields[config.fieldMappings.senderPair] === currentConversationPair)
+                : messages;
+
+            if (filteredMessages.length === 0) {
+                chatContainer.innerHTML = '<div class="error-message">No messages in this conversation.</div>';
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            let lastDate = '';
+            
+            // Process messages in chronological order
+            for (let i = 0; i < filteredMessages.length; i++) {
+                const record = filteredMessages[i];
+                const messageDiv = document.createElement("div");
+                
+                // Get message content
+                const messageText = record.fields[config.fieldMappings.content] || "(No content)";
+                
+                // Determine sender using Sender ID field (phone number)
+                const senderId = record.fields[config.fieldMappings.senderId] || "";
+                const isYou = senderId.includes(config.yourUserId);
+                
+                // Create message bubble
+                const bubble = document.createElement("div");
+                bubble.classList.add("message-bubble");
+                bubble.classList.add(isYou ? "user-message" : "other-message");
+                bubble.textContent = messageText;
+                
+                // Add sender name for others' messages
+                if (!isYou && record.fields[config.fieldMappings.linkedSender]) {
+                    const senderRecords = record.fields[config.fieldMappings.linkedSender];
+                    if (senderRecords && senderRecords.length > 0) {
+                        const senderName = document.createElement("div");
+                        senderName.classList.add("sender-name");
+                        
+                        // Get name from our cached user names map
+                        const senderNameText = window.userNamesMap 
+                            ? window.userNamesMap.get(senderRecords[0]) || 'Unknown User' 
+                            : 'Unknown User';
+                        
+                        senderName.textContent = senderNameText;
+                        messageDiv.appendChild(senderName);
+                    }
+                }
+                
+                // Get the ACTUAL timestamp from "Time" field
+                const timestamp = record.fields[config.fieldMappings.timestamp];
+                
+                if (timestamp) {
+                    // Add date divider if date changed
+                    const currentDate = formatDateDivider(timestamp);
+                    if (currentDate && currentDate !== lastDate) {
+                        const dateDivider = document.createElement("div");
+                        dateDivider.classList.add("date-divider");
+                        dateDivider.textContent = currentDate;
+                        fragment.appendChild(dateDivider);
+                        lastDate = currentDate;
+                    }
+                    
+                    const timeElement = document.createElement("div");
+                    timeElement.classList.add("timestamp");
+                    timeElement.textContent = formatTimestamp(timestamp);
+                    bubble.appendChild(timeElement);
+                }
+                
+                messageDiv.appendChild(bubble);
+                fragment.appendChild(messageDiv);
+            }
+            
+            chatContainer.innerHTML = '';
+            chatContainer.appendChild(fragment);
+            // Scroll to bottom to see newest messages
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function handleError(error) {
+            console.error('Error:', error);
+            
+            let errorMessage = 'Error loading messages. Please try again later.';
+            let debugInfo = '';
+            
+            if (error.message.includes('403')) {
+                errorMessage = 'Access Denied (403 Forbidden)';
+                debugInfo = `
+                <div class="debug-info">
+                    <strong>Possible causes:</strong>
+                    <ul>
+                    <li>Invalid Personal Access Token</li>
+                    <li>Token missing required scopes</li>
+                    <li>Incorrect base ID or table name</li>
+                    </ul>
+                    <strong>Current config:</strong><br>
+                    Base: ${config.baseId}<br>
+                    Table: ${config.tableName}<br>
+                    Timestamp Field: ${config.fieldMappings.timestamp}
+                </div>
+                `;
+            } else if (error.message.includes('422')) {
+                errorMessage = 'Data Validation Error (422)';
+                debugInfo = `
+                <div class="debug-info">
+                    <strong>Field Mappings:</strong><br>
+                    Content: "${config.fieldMappings.content}"<br>
+                    Sender ID: "${config.fieldMappings.senderId}"<br>
+                    Timestamp: "${config.fieldMappings.timestamp}"<br>
+                    Recipient ID: "${config.fieldMappings.recipientId}"<br>
+                    <strong>Verify these match your Airtable fields exactly</strong>
+                </div>
+                `;
+            }
+            
+            chatContainer.innerHTML = `
+                <div class="error-message">
+                ${errorMessage}
+                <br><br>
+                <strong>Details:</strong><br>
+                ${error.message.split('\n')[0]}
+                ${debugInfo}
+                </div>
+            `;
+        }
+
+        async function loadMessages() {
+            try {
+                const messages = await fetchMessages();
+                allMessages = messages;
+                await populateConversationSelector(messages);
+                renderMessages(messages);
+            } catch (error) {
+                handleError(error);
+            }
+        }
+
+        function setupAutoRefresh() {
+            if (refreshIntervalId) clearInterval(refreshIntervalId);
+            refreshIntervalId = setInterval(loadMessages, config.refreshInterval);
+        }
+
+        // Send button functionality
+        sendButton.addEventListener('click', function() {
+            const message = messageInput.value.trim();
+            if (message) {
+                // Get current time
+                const now = new Date();
+                const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                // Add message to chat
+                addMessage('You', message, time, 'user');
+                
+                // Clear input
+                messageInput.value = '';
+                
+                // Here you would typically send the message to your Airtable base
+                console.log("Message would be sent to Airtable:", message);
+                
+                // Simulate reply after a short delay
+                setTimeout(() => {
+                    const replies = [
+                        "Thanks for your message!",
+                        "I'll get back to you soon.",
+                        "That's interesting!",
+                        "Let me check on that and get back to you.",
+                        "Great to hear from you!"
+                    ];
+                    const randomReply = replies[Math.floor(Math.random() * replies.length)];
+                    addMessage('Responder', randomReply, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 'other');
+                }, 1000 + Math.random() * 2000);
+            }
+        });
+        
+        // Allow sending message with Enter key
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+
+        refreshButton.addEventListener('click', async () => {
+            refreshButton.disabled = true;
+            refreshButton.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+            try {
+                await loadMessages();
+            } finally {
+                refreshButton.disabled = false;
+                refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            }
+        });
+
+        conversationSelector.addEventListener('change', () => {
+            currentConversationPair = conversationSelector.value;
+            renderMessages(allMessages);
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMessages();
+            setupAutoRefresh();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (refreshIntervalId) clearInterval(refreshIntervalId);
+        });
+    </script>
 </body>
 </html>
