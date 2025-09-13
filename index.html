@@ -4,6 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Live Chat</title>
 <style>
+/* Your existing CSS remains the same */
 body {
   font-family: 'Segoe UI', Roboto, sans-serif;
   margin: 0;
@@ -366,13 +367,38 @@ async function fetchMessages() {
   }
 }
 
+function extractUserName(linkedField) {
+  if (!linkedField) return "Unknown User";
+  
+  // If it's an array (multiple linked records), take the first one
+  if (Array.isArray(linkedField)) {
+    return linkedField[0] || "Unknown User";
+  }
+  
+  // If it's a string, return it directly
+  if (typeof linkedField === "string") {
+    return linkedField;
+  }
+  
+  return "Unknown User";
+}
+
 function populateConversationSelector(messages) {
-  // Extract unique conversation pairs
-  const pairs = new Set();
+  // Create a map of conversation pairs to their participant names
+  const conversationMap = new Map();
   
   messages.forEach(record => {
     const pair = record.fields[config.fieldMappings.senderPair];
-    if (pair) pairs.add(pair);
+    if (!pair) return;
+    
+    // Extract sender and recipient names
+    const senderName = extractUserName(record.fields[config.fieldMappings.linkedSender]);
+    const recipientName = extractUserName(record.fields[config.fieldMappings.linkedRecipient]);
+    
+    // Store the conversation with readable names
+    if (!conversationMap.has(pair)) {
+      conversationMap.set(pair, `${senderName} ↔ ${recipientName}`);
+    }
   });
   
   // Clear existing options
@@ -384,18 +410,23 @@ function populateConversationSelector(messages) {
   defaultOption.textContent = 'Select a conversation...';
   conversationSelector.appendChild(defaultOption);
   
-  // Add conversation options
-  pairs.forEach(pair => {
+  // Add conversation options with readable names
+  conversationMap.forEach((readableName, pairId) => {
     const option = document.createElement('option');
-    option.value = pair;
-    option.textContent = pair;
+    option.value = pairId;
+    option.textContent = readableName;
+    option.setAttribute('data-pair', pairId); // Store the original pair ID
     conversationSelector.appendChild(option);
   });
   
+  // Store the mapping for later use
+  window.conversationMap = conversationMap;
+  
   // Auto-select if only one conversation
-  if (pairs.size === 1) {
-    currentConversationPair = Array.from(pairs)[0];
-    conversationSelector.value = currentConversationPair;
+  if (conversationMap.size === 1) {
+    const firstPair = Array.from(conversationMap.keys())[0];
+    currentConversationPair = firstPair;
+    conversationSelector.value = firstPair;
   }
 }
 
@@ -442,8 +473,7 @@ function renderMessages(messages) {
       senderName.classList.add("sender-name");
       
       // Extract name from linked record if available
-      const linkedSender = record.fields[config.fieldMappings.linkedSender];
-      const senderNameText = Array.isArray(linkedSender) ? linkedSender[0] : "Unknown";
+      const senderNameText = extractUserName(record.fields[config.fieldMappings.linkedSender]);
       senderName.textContent = senderNameText;
       
       messageDiv.appendChild(senderName);
