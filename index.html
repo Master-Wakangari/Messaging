@@ -219,7 +219,7 @@ const config = {
   yourUserId: "6512199514",
   
   // Refresh settings
-  refreshInterval: 5000, // 5 seconds
+  refreshInterval: 10000, // 10 seconds (slower to avoid rate limits)
   maxRetries: 3,
   retryDelay: 2000
 };
@@ -232,6 +232,7 @@ let retryCount = 0;
 let refreshIntervalId = null;
 let allMessages = [];
 let currentConversationPair = '';
+let userNamesCache = new Map(); // Cache for user names
 
 const chatContainer = document.getElementById("chat");
 const loadingIndicator = document.getElementById("loading");
@@ -321,13 +322,68 @@ function formatDateDivider(timestamp) {
   }
 }
 
+async function fetchUserNames(recordIds) {
+  if (!recordIds || recordIds.length === 0) return new Map();
+  
+  const uniqueIds = [...new Set(recordIds)];
+  const cachedResults = new Map();
+  const idsToFetch = [];
+  
+  // Check cache first
+  uniqueIds.forEach(id => {
+    if (userNamesCache.has(id)) {
+      cachedResults.set(id, userNamesCache.get(id));
+    } else {
+      idsToFetch.push(id);
+    }
+  });
+  
+  if (idsToFetch.length === 0) return cachedResults;
+  
+  try {
+    // Fetch user names from the User UID table
+    const formula = `OR(${idsToFetch.map(id => `RECORD_ID() = '${id}'`).join(', ')})`;
+    const url = new URL(`https://api.airtable.com/v0/${config.baseId}/User UID`);
+    url.searchParams.append('filterByFormula', formula);
+    
+    const response = await fetch(url, {
+      headers: { 
+        Authorization: `Bearer ${config.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user data: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const userMap = new Map();
+    
+    // Extract user names (assuming the primary field contains the name)
+    data.records.forEach(record => {
+      const userName = record.fields.Name || Object.values(record.fields)[0] || 'Unknown User';
+      userMap.set(record.id, userName);
+      userNamesCache.set(record.id, userName); // Cache for future use
+    });
+    
+    // Combine cached and new results
+    return new Map([...cachedResults, ...userMap]);
+    
+  } catch (error) {
+    console.error('Error fetching user names:', error);
+    // Return cached results only if we can't fetch new ones
+    return cachedResults;
+  }
+}
+
 async function fetchMessages() {
   try {
     loadingIndicator.style.display = 'block';
     
     const url = new URL(`https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(config.tableName)}`);
     url.searchParams.append('sort[0][field]', config.fieldMappings.timestamp);
-    url.searchParams.append('sort[0][direction]', 'asc'); // OLDEST FIRST
+    url.searchParams.append('sort[0][direction]', 'asc');
     
     const response = await fetch(url, {
       headers: { 
@@ -367,23 +423,27 @@ async function fetchMessages() {
   }
 }
 
-function extractUserName(linkedField) {
-  if (!linkedField) return "Unknown User";
+async function populateConversationSelector(messages) {
+  // Collect all user record IDs from linked fields
+  const allUserRecordIds = [];
   
-  // If it's an array (multiple linked records), take the first one
-  if (Array.isArray(linkedField)) {
-    return linkedField[0] || "Unknown User";
-  }
+  messages.forEach(record => {
+    // Get sender record IDs
+    const senderRecords = record.fields[config.fieldMappings.linkedSender];
+    if (senderRecords && Array.isArray(senderRecords)) {
+      allUserRecordIds.push(...senderRecords);
+    }
+    
+    // Get recipient record IDs
+    const recipientRecords = record.fields[config.fieldMappings.linkedRecipient];
+    if (recipientRecords && Array.isArray(recipientRecords)) {
+      allUserRecordIds.push(...recipientRecords);
+    }
+  });
   
-  // If it's a string, return it directly
-  if (typeof linkedField === "string") {
-    return linkedField;
-  }
+  // Fetch user names for all record IDs
+  const userNamesMap = await fetchUserNames(allUserRecordIds);
   
-  return "Unknown User";
-}
-
-function populateConversationSelector(messages) {
   // Create a map of conversation pairs to their participant names
   const conversationMap = new Map();
   
@@ -391,9 +451,17 @@ function populateConversationSelector(messages) {
     const pair = record.fields[config.fieldMappings.senderPair];
     if (!pair) return;
     
-    // Extract sender and recipient names
-    const senderName = extractUserName(record.fields[config.fieldMappings.linkedSender]);
-    const recipientName = extractUserName(record.fields[config.fieldMappings.linkedRecipient]);
+    // Extract sender and recipient names from the map
+    const senderRecords = record.fields[config.fieldMappings.linkedSender];
+    const recipientRecords = record.fields[config.fieldMappings.linkedRecipient];
+    
+    const senderName = senderRecords && senderRecords.length > 0 
+      ? userNamesMap.get(senderRecords[0]) || 'Unknown Sender' 
+      : 'Unknown Sender';
+    
+    const recipientName = recipientRecords && recipientRecords.length > 0 
+      ? userNamesMap.get(recipientRecords[0]) || 'Unknown Recipient' 
+      : 'Unknown Recipient';
     
     // Store the conversation with readable names
     if (!conversationMap.has(pair)) {
@@ -415,12 +483,12 @@ function populateConversationSelector(messages) {
     const option = document.createElement('option');
     option.value = pairId;
     option.textContent = readableName;
-    option.setAttribute('data-pair', pairId); // Store the original pair ID
     conversationSelector.appendChild(option);
   });
   
   // Store the mapping for later use
   window.conversationMap = conversationMap;
+  window.userNamesMap = userNamesMap; // Store for message rendering
   
   // Auto-select if only one conversation
   if (conversationMap.size === 1) {
@@ -469,14 +537,19 @@ function renderMessages(messages) {
     
     // Add sender name for others' messages
     if (!isYou && record.fields[config.fieldMappings.linkedSender]) {
-      const senderName = document.createElement("div");
-      senderName.classList.add("sender-name");
-      
-      // Extract name from linked record if available
-      const senderNameText = extractUserName(record.fields[config.fieldMappings.linkedSender]);
-      senderName.textContent = senderNameText;
-      
-      messageDiv.appendChild(senderName);
+      const senderRecords = record.fields[config.fieldMappings.linkedSender];
+      if (senderRecords && senderRecords.length > 0) {
+        const senderName = document.createElement("div");
+        senderName.classList.add("sender-name");
+        
+        // Get name from our cached user names map
+        const senderNameText = window.userNamesMap 
+          ? window.userNamesMap.get(senderRecords[0]) || 'Unknown User' 
+          : 'Unknown User';
+        
+        senderName.textContent = senderNameText;
+        messageDiv.appendChild(senderName);
+      }
     }
     
     // Get the ACTUAL timestamp from "Time" field
@@ -560,7 +633,7 @@ async function loadMessages() {
   try {
     const messages = await fetchMessages();
     allMessages = messages;
-    populateConversationSelector(messages);
+    await populateConversationSelector(messages);
     renderMessages(messages);
   } catch (error) {
     handleError(error);
