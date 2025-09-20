@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Chat with Send</title>
+    <title>Enhanced Live Chat</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -14,7 +14,7 @@
         }
         
         body {
-            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #333;
             min-height: 100vh;
             display: flex;
@@ -26,17 +26,18 @@
         .container {
             max-width: 1000px;
             width: 100%;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
             height: 85vh;
+            position: relative;
         }
         
         .header {
-            background: #0084ff;
+            background: linear-gradient(to right, #0084ff, #00c4ff);
             color: white;
             padding: 20px;
             text-align: center;
@@ -46,10 +47,39 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
         
         .header i {
             font-size: 1.8rem;
+        }
+        
+        .status-indicator {
+            position: absolute;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+        }
+        
+        .status-dot.offline {
+            background: #ff4d4f;
+        }
+        
+        .status-dot.loading {
+            background: #ff9800;
         }
         
         .conversation-selector {
@@ -58,11 +88,12 @@
             border-bottom: 1px solid #e4e6eb;
             display: flex;
             justify-content: center;
+            position: relative;
         }
         
         .conversation-selector select {
-            padding: 10px 15px;
-            border-radius: 20px;
+            padding: 12px 20px;
+            border-radius: 25px;
             border: 1px solid #ddd;
             background: white;
             font-size: 1rem;
@@ -70,6 +101,18 @@
             max-width: 400px;
             outline: none;
             cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230084ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 16px;
+        }
+        
+        .conversation-selector select:focus {
+            border-color: #0084ff;
+            box-shadow: 0 0 0 3px rgba(0, 132, 255, 0.2);
         }
         
         .chat-container {
@@ -80,6 +123,7 @@
             flex-direction: column;
             gap: 15px;
             background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="rgba(240,242,245,0.5)"/><path d="M0 50 L100 50 M50 0 L50 100" stroke="rgba(200,200,200,0.2)" stroke-width="1"/></svg>');
+            position: relative;
         }
         
         .message-bubble {
@@ -91,20 +135,20 @@
             white-space: pre-wrap;
             font-size: 1rem;
             line-height: 1.4;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             position: relative;
             animation: fadeIn 0.3s ease-out;
         }
         
         .user-message {
-            background-color: #0084ff;
+            background: linear-gradient(to right, #0084ff, #00a8ff);
             color: white;
             align-self: flex-end;
             border-bottom-right-radius: 5px;
         }
         
         .other-message {
-            background-color: #e4e6eb;
+            background-color: #f0f2f5;
             color: #050505;
             align-self: flex-start;
             border-bottom-left-radius: 5px;
@@ -115,6 +159,10 @@
             color: #65676b;
             margin-top: 5px;
             text-align: right;
+        }
+        
+        .user-message .timestamp {
+            color: rgba(255, 255, 255, 0.8);
         }
         
         .sender-name {
@@ -130,6 +178,7 @@
             border-top: 1px solid #e4e6eb;
             display: flex;
             gap: 12px;
+            align-items: center;
         }
         
         .message-input input {
@@ -139,15 +188,17 @@
             border-radius: 24px;
             font-size: 1rem;
             outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
         
         .message-input input:focus {
             border-color: #0084ff;
+            box-shadow: 0 0 0 3px rgba(0, 132, 255, 0.2);
         }
         
         .send-button {
-            background: #0084ff;
+            background: linear-gradient(to right, #0084ff, #00a8ff);
             color: white;
             border: none;
             border-radius: 50%;
@@ -158,15 +209,17 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.3s;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 132, 255, 0.3);
         }
         
         .send-button:hover {
-            background: #0073e6;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 132, 255, 0.4);
         }
         
         .send-button:active {
-            transform: scale(0.95);
+            transform: translateY(0);
         }
         
         .loading {
@@ -174,6 +227,19 @@
             padding: 20px;
             color: #65676b;
             font-size: 1.1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0084ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
         
         .date-divider {
@@ -198,7 +264,7 @@
             position: absolute;
             bottom: 30px;
             right: 30px;
-            background: #0084ff;
+            background: linear-gradient(to right, #0084ff, #00a8ff);
             color: white;
             border: none;
             border-radius: 50%;
@@ -206,16 +272,16 @@
             height: 60px;
             font-size: 1.5rem;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 100;
-            transition: transform 0.3s;
+            transition: all 0.3s;
         }
         
         .refresh-button:hover {
-            transform: rotate(30deg);
+            transform: rotate(30deg) scale(1.05);
         }
         
         .error-message {
@@ -225,7 +291,8 @@
             background: white;
             border-radius: 8px;
             margin: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #ff4d4f;
         }
 
         .debug-info {
@@ -233,6 +300,79 @@
             color: #666;
             margin-top: 10px;
             word-break: break-all;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #ddd;
+        }
+        
+        .new-message-notification {
+            position: sticky;
+            bottom: 10px;
+            align-self: center;
+            background: #0084ff;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            transform: translateY(10px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 10;
+            display: none;
+        }
+        
+        .new-message-notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #65676b;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #0084ff;
+            opacity: 0.5;
+        }
+        
+        .typing-indicator {
+            display: none;
+            background-color: #f0f2f5;
+            padding: 12px 18px;
+            border-radius: 18px;
+            align-self: flex-start;
+            margin-bottom: 10px;
+            animation: fadeIn 0.3s;
+        }
+        
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            float: left;
+            margin: 0 1px;
+            background-color: #9E9EA1;
+            display: block;
+            border-radius: 50%;
+            opacity: 0.4;
+        }
+        
+        .typing-indicator span:nth-of-type(1) {
+            animation: typing 1s infinite;
+        }
+        
+        .typing-indicator span:nth-of-type(2) {
+            animation: typing 1s 0.33s infinite;
+        }
+        
+        .typing-indicator span:nth-of-type(3) {
+            animation: typing 1s 0.66s infinite;
         }
         
         @keyframes fadeIn {
@@ -240,10 +380,21 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes typing {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        
         @media (max-width: 768px) {
             .container {
                 height: 92vh;
-                border-radius: 8px;
+                border-radius: 12px;
             }
             
             .header {
@@ -262,6 +413,19 @@
                 height: 50px;
                 font-size: 1.2rem;
             }
+            
+            .conversation-selector select {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .status-indicator {
+                position: relative;
+                right: 0;
+                justify-content: center;
+                margin-top: 10px;
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -270,6 +434,10 @@
         <div class="header">
             <i class="fas fa-comments"></i>
             <span>Live Chat</span>
+            <div class="status-indicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
         </div>
         
         <div class="conversation-selector">
@@ -279,7 +447,18 @@
         </div>
         
         <div class="chat-container" id="chat">
-            <div class="loading" id="loading">Loading messages...</div>
+            <div class="loading" id="loading">
+                <div class="loading-spinner"></div>
+                <div>Loading messages...</div>
+            </div>
+            <div class="typing-indicator" id="typingIndicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="new-message-notification" id="newMessageNotification">
+                New messages available <i class="fas fa-arrow-down"></i>
+            </div>
         </div>
         
         <div class="message-input">
@@ -340,6 +519,8 @@
         let allMessages = [];
         let currentConversationPair = '';
         let userNamesCache = new Map(); // Cache for user names
+        let isAtBottom = true;
+        let newMessagesAvailable = false;
 
         const chatContainer = document.getElementById("chat");
         const loadingIndicator = document.getElementById("loading");
@@ -347,10 +528,39 @@
         const conversationSelector = document.getElementById("conversationSelector");
         const messageInput = document.getElementById("messageInput");
         const sendButton = document.getElementById("sendButton");
+        const statusDot = document.getElementById("statusDot");
+        const statusText = document.getElementById("statusText");
+        const newMessageNotification = document.getElementById("newMessageNotification");
+        const typingIndicator = document.getElementById("typingIndicator");
+        
+        // Function to update connection status
+        function updateStatus(status, isError = false) {
+            statusDot.className = 'status-dot ' + (isError ? 'offline' : (status === 'Connected' ? '' : 'loading'));
+            statusText.textContent = status;
+        }
+        
+        // Function to check if user is at the bottom of the chat
+        function checkScrollPosition() {
+            const threshold = 100;
+            isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop - threshold <= chatContainer.clientHeight;
+            
+            // Hide new message notification if user scrolls to bottom
+            if (isAtBottom && newMessagesAvailable) {
+                newMessagesAvailable = false;
+                newMessageNotification.classList.remove('show');
+                setTimeout(() => {
+                    newMessageNotification.style.display = 'none';
+                }, 300);
+            }
+        }
         
         // Function to add a message to the chat
-        function addMessage(sender, message, time, type) {
+        function addMessage(sender, message, time, type, recordId = null) {
             const messageDiv = document.createElement('div');
+            if (recordId) {
+                messageDiv.setAttribute('data-record-id', recordId);
+            }
+            
             messageDiv.classList.add('message-bubble');
             messageDiv.classList.add(type === 'user' ? 'user-message' : 'other-message');
             
@@ -368,10 +578,19 @@
             timestamp.textContent = time;
             messageDiv.appendChild(timestamp);
             
-            chatContainer.appendChild(messageDiv);
+            chatContainer.insertBefore(messageDiv, typingIndicator);
             
-            // Scroll to bottom
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Scroll to bottom if user was at bottom
+            if (isAtBottom) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            } else if (type !== 'user') {
+                // Show notification for new messages if not at bottom
+                newMessagesAvailable = true;
+                newMessageNotification.style.display = 'block';
+                setTimeout(() => {
+                    newMessageNotification.classList.add('show');
+                }, 100);
+            }
         }
 
         function formatTimestamp(timestamp) {
@@ -476,6 +695,8 @@
             if (idsToFetch.length === 0) return cachedResults;
             
             try {
+                updateStatus('Loading user info...');
+                
                 // Fetch user names from the User UID table
                 const formula = `OR(${idsToFetch.map(id => `RECORD_ID() = '${id}'`).join(', ')})`;
                 const url = new URL(`https://api.airtable.com/v0/${config.baseId}/User UID`);
@@ -514,7 +735,8 @@
 
         async function fetchMessages() {
             try {
-                loadingIndicator.style.display = 'block';
+                loadingIndicator.style.display = 'flex';
+                updateStatus('Loading messages...');
                 
                 const url = new URL(`https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(config.tableName)}`);
                 url.searchParams.append('sort[0][field]', config.fieldMappings.timestamp);
@@ -541,14 +763,17 @@
                 console.log("API Success:", data.records?.length, "messages loaded");
                 lastFetchTime = Date.now();
                 retryCount = 0;
+                updateStatus('Connected');
                 return data.records;
                 
             } catch (error) {
                 console.error('Fetch Error:', error);
                 retryCount++;
+                updateStatus('Connection Error', true);
                 
                 if (retryCount <= config.maxRetries) {
                     console.log(`Retrying in ${config.retryDelay/1000} seconds... (${retryCount}/${config.maxRetries})`);
+                    updateStatus(`Retrying (${retryCount}/${config.maxRetries})...`);
                     await new Promise(resolve => setTimeout(resolve, config.retryDelay));
                     return fetchMessages();
                 }
@@ -635,7 +860,13 @@
 
         function renderMessages(messages) {
             if (!messages || messages.length === 0) {
-                chatContainer.innerHTML = '<div class="error-message">No messages found.</div>';
+                chatContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-comment-slash"></i>
+                        <h3>No messages found</h3>
+                        <p>Start a conversation by sending a message</p>
+                    </div>
+                `;
                 return;
             }
 
@@ -645,7 +876,13 @@
                 : messages;
 
             if (filteredMessages.length === 0) {
-                chatContainer.innerHTML = '<div class="error-message">No messages in this conversation.</div>';
+                chatContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-comments"></i>
+                        <h3>No messages in this conversation</h3>
+                        <p>Send a message to start chatting</p>
+                    </div>
+                `;
                 return;
             }
 
@@ -656,6 +893,7 @@
             for (let i = 0; i < filteredMessages.length; i++) {
                 const record = filteredMessages[i];
                 const messageDiv = document.createElement("div");
+                messageDiv.setAttribute('data-record-id', record.id);
                 
                 // Get message content
                 const messageText = record.fields[config.fieldMappings.content] || "(No content)";
@@ -713,8 +951,16 @@
             
             chatContainer.innerHTML = '';
             chatContainer.appendChild(fragment);
+            
+            // Add typing indicator at the end if needed
+            chatContainer.appendChild(typingIndicator);
+            
+            // Add new message notification
+            chatContainer.appendChild(newMessageNotification);
+            
             // Scroll to bottom to see newest messages
             chatContainer.scrollTop = chatContainer.scrollHeight;
+            isAtBottom = true;
         }
 
         function handleError(error) {
@@ -751,6 +997,18 @@
                     <strong>Verify these match your Airtable fields exactly</strong>
                 </div>
                 `;
+            } else if (error.message.includes('Failed to fetch')) {
+                errorMessage = 'Network Error';
+                debugInfo = `
+                <div class="debug-info">
+                    <strong>Possible causes:</strong>
+                    <ul>
+                    <li>No internet connection</li>
+                    <li>API server is down</li>
+                    <li>Firewall or CORS issue</li>
+                    </ul>
+                </div>
+                `;
             }
             
             chatContainer.innerHTML = `
@@ -762,6 +1020,8 @@
                 ${debugInfo}
                 </div>
             `;
+            
+            updateStatus('Connection Error', true);
         }
 
         async function loadMessages() {
@@ -794,11 +1054,17 @@
                 // Clear input
                 messageInput.value = '';
                 
+                // Show typing indicator
+                typingIndicator.style.display = 'block';
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                
                 // Here you would typically send the message to your Airtable base
                 console.log("Message would be sent to Airtable:", message);
                 
                 // Simulate reply after a short delay
                 setTimeout(() => {
+                    typingIndicator.style.display = 'none';
+                    
                     const replies = [
                         "Thanks for your message!",
                         "I'll get back to you soon.",
@@ -807,7 +1073,12 @@
                         "Great to hear from you!"
                     ];
                     const randomReply = replies[Math.floor(Math.random() * replies.length)];
-                    addMessage('Responder', randomReply, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 'other');
+                    
+                    // Get a random sender name for demo purposes
+                    const senders = ["Sarah", "Alex", "Customer Support", "John", "Team"];
+                    const randomSender = senders[Math.floor(Math.random() * senders.length)];
+                    
+                    addMessage(randomSender, randomReply, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 'other');
                 }, 1000 + Math.random() * 2000);
             }
         });
@@ -834,11 +1105,25 @@
             currentConversationPair = conversationSelector.value;
             renderMessages(allMessages);
         });
+        
+        // Scroll position detection
+        chatContainer.addEventListener('scroll', checkScrollPosition);
+        
+        // New message notification click handler
+        newMessageNotification.addEventListener('click', () => {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            newMessageNotification.classList.remove('show');
+            newMessagesAvailable = false;
+            setTimeout(() => {
+                newMessageNotification.style.display = 'none';
+            }, 300);
+        });
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadMessages();
             setupAutoRefresh();
+            checkScrollPosition();
         });
 
         window.addEventListener('beforeunload', () => {
